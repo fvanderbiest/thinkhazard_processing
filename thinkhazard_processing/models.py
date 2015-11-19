@@ -1,6 +1,10 @@
 # coding: utf-8
 from sqlalchemy import (Column, ForeignKey,
                         Boolean, Date, Integer, String)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+import geoalchemy2
+from . import settings
 
 from thinkhazard_common.models import Base
 
