@@ -59,6 +59,11 @@ class HazardSet(Base):
     # finally it is processed:
     processed = Column(Boolean, nullable=False, default=False)
 
+    def path(self):
+        return os.path.join(settings['data_path'],
+                            'datasets',
+                            self.hazard_set_id)
+
 
 class Layer(Base):
     __tablename__ = 'layer'
@@ -102,6 +107,12 @@ class Layer(Base):
     # "downloaded" is set to true
     # when the geotiff file has been downloaded
     downloaded = Column(Boolean, nullable=False, default=False)
+
+    def path(self):
+        return os.path.join(settings['data_path'],
+                            'datasets',
+                            self.hazard_set_id,
+                            '{}.tif'.format(self.return_period))
 
 
 class Output(Base):
