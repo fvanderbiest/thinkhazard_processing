@@ -19,10 +19,14 @@ setup(name='thinkhazard_processing',
       url='https://github.com/GFDRR/thinkhazard_processing',
       author='Camptocamp',
       author_email='info@camptocamp.com',
-      packages=['thinkhazard_processing'],
+      packages=['thinkhazard_processing', 'thinkhazard_processing.scripts'],
       zip_safe=False,
       install_requires=install_requires,
       setup_requires=setup_requires,
       tests_require=tests_require,
       test_suite='thinkhazard_processing.tests',
+      entry_points="""\
+      [console_scripts]
+      initialize_db = thinkhazard_processing.scripts.initializedb:main
+      """,
       )
