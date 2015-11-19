@@ -2,13 +2,15 @@
 from sqlalchemy import (Column, ForeignKey,
                         Boolean, Date, Integer, String)
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
 import geoalchemy2
 
 
+DBSession = scoped_session(sessionmaker())
 Base = declarative_base()
 
 
-class Administrativedivision(Base):
+class AdministrativeDivision(Base):
     __tablename__ = 'administrativedivision'
     __table_args__ = {u'schema': 'processing'}
     id = Column(Integer, primary_key=True)
@@ -69,7 +71,6 @@ class Layer(Base):
 class Output(Base):
     __tablename__ = 'output'
     __table_args__ = {u'schema': 'processing'}
-
     hazard_set_id = Column(String(1024),
                            ForeignKey('processing.dataset.hazard_set_id'),
                            primary_key=True)
