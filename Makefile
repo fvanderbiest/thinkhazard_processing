@@ -10,12 +10,17 @@ help:
 	@echo "Possible targets:"
 	@echo
 	@echo "- install                 Install thinkhazard"
+	@echo "- initdb                  Initialize database"
 	@echo "- check                   Check the code with flake8"
 	@echo "- test                    Run the unit tests"
 	@echo
 
 .PHONY: install
 install: .build/requirements.timestamp
+
+.PHONY: initdb
+initdb: .build/requirements.timestamp
+	.build/venv/bin/initialize_db
 
 .PHONY: check
 check: flake8
