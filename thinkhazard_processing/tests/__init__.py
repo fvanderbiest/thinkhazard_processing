@@ -1,5 +1,7 @@
-import ConfigParser
-from sqlalchemy import create_engine
+import yaml
+from sqlalchemy import engine_from_config
+
+from .. import settings
 from ..models import DBSession
 from .test_data import populate_admindiv, populate_dataset
 
@@ -7,18 +9,14 @@ from .test_data import populate_admindiv, populate_dataset
 hazard_set = 'EQ-GLOBAL-GAR15'
 
 
-local_settings_path = 'local.tests.ini'
+local_settings_path = 'local.tests.yaml'
 
-# raise an error if the file doesn't exist
-with open(local_settings_path):
-    pass
+with open(local_settings_path, 'r') as f:
+    settings.update(yaml.load(f.read()))
 
 
 def populate_db():
-    config = ConfigParser.ConfigParser()
-    config.read(local_settings_path)
-    db_url = config.get('app:main', 'sqlalchemy.url')
-    engine = create_engine(db_url)
+    engine = engine_from_config(settings, 'sqlalchemy.')
 
     from ..scripts.initializedb import initdb
     initdb(engine, True)
