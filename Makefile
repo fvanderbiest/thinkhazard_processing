@@ -34,8 +34,12 @@ test: .build/dev-requirements.timestamp
 
 .build/venv:
 	mkdir -p $(dir $@)
-	virtualenv .build/venv
-	.build/venv/bin/pip install --upgrade pip
+	# make a first virtualenv to get a recent version of virtualenv
+	virtualenv venv
+	venv/bin/pip install virtualenv
+	venv/bin/virtualenv .build/venv
+	# remove the temporary virtualenv
+	rm -rf venv
 
 .build/dev-requirements.timestamp: .build/venv dev-requirements.txt
 	mkdir -p $(dir $@)
