@@ -14,6 +14,20 @@ Create a Python virtual environment and install the project into it::
 
     $ make install
 
+Configure the project
+
+Use ``local_settings.yaml``
+===========================
+
+The settings defined in the ``thinkhazard_processing.yaml`` file can be
+overriden by creating a ``local_settings.yaml`` file at the root of the
+project.
+
+For example, you can define a specific database connection with a
+``local_settings.yaml`` file that looks like this::
+
+    sqlalchemy.url = postgresql://www-data:www-data@localhost:9999/thinkhazard
+
 Run tests
 =========
 

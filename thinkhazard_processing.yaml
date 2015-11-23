@@ -1,0 +1,4 @@
+sqlalchemy.url: postgresql://www-data:www-data@localhost:5432/thinkhazard_processing_bis
+threshold: 98.0665
+return_periods: [2475, 475, 100]
+data_path: /tmp
