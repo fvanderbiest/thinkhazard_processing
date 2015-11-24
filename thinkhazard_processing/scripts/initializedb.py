@@ -8,9 +8,16 @@ from thinkhazard_common.scripts.initializedb import initdb, schema_exists
 
 
 def initdb_processing(engine, drop_all=False):
-    if not schema_exists(engine, 'processing'):
-        engine.execute("CREATE SCHEMA processing;")
-    initdb(engine, drop_all=drop_all)
+    connection = engine.connect()
+    trans = connection.begin()
+    try:
+        if not schema_exists(connection, 'processing'):
+            connection.execute("CREATE SCHEMA processing;")
+        initdb(connection, drop_all=drop_all)
+        trans.commit()
+    except:
+        trans.rollback()
+        raise
 
 
 def main(argv=sys.argv):
