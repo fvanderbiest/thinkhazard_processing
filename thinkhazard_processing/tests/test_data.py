@@ -4,7 +4,7 @@ from shapely.geometry import (
     )
 from geoalchemy2.shape import from_shape
 
-from ..models import DBSession, AdministrativeDivision, Dataset, Layer, Output
+from ..models import DBSession, AdministrativeDivision, Dataset, Layer
 from .. import settings
 
 

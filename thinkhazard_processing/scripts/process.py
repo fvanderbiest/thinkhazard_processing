@@ -7,7 +7,6 @@ import numpy
 import rasterio
 import pyproj
 from rasterio import features
-from shapely.geometry import shape
 from shapely.ops import transform
 from functools import partial
 
