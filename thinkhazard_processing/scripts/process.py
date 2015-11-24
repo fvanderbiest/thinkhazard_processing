@@ -44,11 +44,7 @@ def main(argv=sys.argv):
 def execute(hazard_set_id, force=False):
     chrono = datetime.datetime.now()
 
-    dataset = (
-        DBSession.query(Dataset)
-        .filter(Dataset.hazard_set_id == hazard_set_id)
-        .first()
-    )
+    dataset = DBSession.query(Dataset).get(hazard_set_id)
     if dataset is None:
         raise ProcessException('Dataset {} does not exists.'
                                .format(hazard_set_id))
