@@ -29,7 +29,7 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--force', dest='force',
         action='store_const', const=True, default=False,
-        help='Force execution even if dataset already has been processed')
+        help='Force execution even if dataset has already been processed')
     args = parser.parse_args(argv[1:])
 
     engine = engine_from_config(settings, 'sqlalchemy.')
