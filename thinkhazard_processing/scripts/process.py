@@ -46,7 +46,7 @@ def execute(hazard_set_id, force=False):
 
     dataset = DBSession.query(Dataset).get(hazard_set_id)
     if dataset is None:
-        raise ProcessException('Dataset {} does not exists.'
+        raise ProcessException('Dataset {} does not exist.'
                                .format(hazard_set_id))
 
     if dataset.processed:
@@ -76,8 +76,8 @@ def execute(hazard_set_id, force=False):
                 .filter(Layer.return_period == return_period)
                 .first()
             )
-            if dataset is None:
-                raise ProcessException('Layer {} {}) does not exists.'
+            if layer is None:
+                raise ProcessException('Layer {} {}) does not exist.'
                                        .format(hazard_set_id, return_period))
 
             # Register GDAL format drivers and configuration options with a
