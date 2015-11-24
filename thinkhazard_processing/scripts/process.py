@@ -59,8 +59,8 @@ def execute(hazard_set_id, force=False):
 
     # lean previous outputs
     DBSession.query(Output) \
-    .filter(hazard_set_id == hazard_set_id) \
-    .delete()
+        .filter(hazard_set_id == hazard_set_id) \
+        .delete()
 
     print 'Reading raster data'
     threshold = settings['threshold']
