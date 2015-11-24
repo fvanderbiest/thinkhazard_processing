@@ -1,27 +1,10 @@
 # coding: utf-8
 from sqlalchemy import (Column, ForeignKey,
                         Boolean, Date, Integer, String)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
 import geoalchemy2
 
 
-DBSession = scoped_session(sessionmaker())
-Base = declarative_base()
-
-
-class AdministrativeDivision(Base):
-    __tablename__ = 'administrativedivision'
-    __table_args__ = {u'schema': 'processing'}
-    id = Column(Integer, primary_key=True)
-    code = Column(Integer, nullable=False, unique=True)
-    leveltype_id = Column(Integer, nullable=False)
-    name = Column(String, nullable=False)
-    parent_code = Column(Integer,
-                         ForeignKey('processing.administrativedivision.code'))
-    geom = Column(geoalchemy2.Geometry('MULTIPOLYGON',
-                                       3857,
-                                       management=True))  # bbox ?
+from thinkhazard_common.models import Base
 
 
 class Dataset(Base):
@@ -75,6 +58,6 @@ class Output(Base):
                            ForeignKey('processing.dataset.hazard_set_id'),
                            primary_key=True)
     admin_id = Column(Integer,
-                      ForeignKey('processing.administrativedivision.id'),
+                      ForeignKey('datamart.administrativedivision.id'),
                       primary_key=True)
     hazard_level = Column(Integer)  # 1, 2, 3, 4
