@@ -91,14 +91,14 @@ def execute(hazard_set_id, force=False):
                       pyproj.Proj(init='epsg:4326'))
 
     print 'Reading admin divisions'
-    query = (
+    admindivs = (
         DBSession.query(AdministrativeDivision)
         .filter(AdministrativeDivision.leveltype_id == 2)
     )
-    admindivs = query.all()
 
     print 'Processing'
     current = 0
+    total = admindivs.count()
     for admindiv in admindivs:
         current += 1
 
@@ -124,8 +124,9 @@ def execute(hazard_set_id, force=False):
 
         DBSession.add(output)
 
-        if current % 100 == 0:
-            print '... processed {} divisions'.format(current)
+        percent = int(100.0 * current / total)
+        if percent % 1 == 0:
+            print '... processed {}%'.format(percent)
 
     dataset.processed = True
     print ('Successfully processed {} divisions:'
