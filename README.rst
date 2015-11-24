@@ -26,7 +26,7 @@ project.
 For example, you can define a specific database connection with a
 ``local_settings.yaml`` file that looks like this::
 
-    sqlalchemy.url = postgresql://www-data:www-data@localhost:9999/thinkhazard
+    sqlalchemy.url: postgresql://www-data:www-data@localhost:9999/thinkhazard
 
 Run tests
 =========
