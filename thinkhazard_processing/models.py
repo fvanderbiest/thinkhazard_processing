@@ -1,22 +1,17 @@
 # coding: utf-8
 import os
-from sqlalchemy import (Column, ForeignKey,
-                        Boolean, Date, Integer, String)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
-import geoalchemy2
-from . import settings
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    Boolean,
+    Date,
+    Integer,
+    String,
+    )
+from sqlalchemy.orm import relationship
 
 from thinkhazard_common.models import Base
-
-
-class HazardUnit(Base):
-    __tablename__ = 'hazardunit'
-    __table_args__ = {u'schema': 'processing'}
-    id = Column(Integer, primary_key=True)
-    # the code for the hazard unit
-    # eg: cm, dm, m, km/h, PGA-g, PGA-gal, SA-g
-    code = Column(String(7), nullable=False, unique=True)
+from . import settings
 
 
 class HazardSet(Base):
@@ -59,6 +54,8 @@ class HazardSet(Base):
     # finally it is processed:
     processed = Column(Boolean, nullable=False, default=False)
 
+    hazardtype = relationship('HazardType', backref="hazardsets")
+
     def path(self):
         return os.path.join(settings['data_path'],
                             'datasets',
@@ -79,9 +76,7 @@ class Layer(Base):
     return_period = Column(Integer, nullable=False)
 
     # pixel values have a unit:
-    hazardunit_id = Column(Integer,
-                           ForeignKey('processing.hazardunit.id'),
-                           nullable=False)
+    hazardunit = Column(String, nullable=False)
 
     # date the data was last updated (defaults to created):
     data_lastupdated_date = Column(Date, nullable=False)
@@ -108,10 +103,13 @@ class Layer(Base):
     # when the geotiff file has been downloaded
     downloaded = Column(Boolean, nullable=False, default=False)
 
+    hazardset = relationship("HazardSet", backref='layers')
+    hazardlevel = relationship("HazardLevel")
+
     def path(self):
         return os.path.join(settings['data_path'],
                             'datasets',
-                            self.hazard_set_id,
+                            self.hazardset_id,
                             '{}.tif'.format(self.return_period))
 
 
@@ -136,3 +134,7 @@ class Output(Base):
     hazardlevel_id = Column(Integer,
                             ForeignKey('datamart.enum_hazardlevel.id'),
                             nullable=False)
+
+    hazardset = relationship('HazardSet')
+    administrativedivision = relationship('AdministrativeDivision')
+    hazardlevel = relationship('HazardLevel')

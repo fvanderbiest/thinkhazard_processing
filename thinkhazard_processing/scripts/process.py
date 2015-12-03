@@ -2,30 +2,22 @@
 
 import sys
 import argparse
-import datetime
-import numpy
-import rasterio
-import pyproj
-from rasterio import features
-from shapely.ops import transform
-from functools import partial
-
+import transaction
 from sqlalchemy import engine_from_config
-from geoalchemy2.shape import to_shape
-
-
+from thinkhazard_common.models import DBSession
 from .. import settings
-from ..models import DBSession, AdministrativeDivision, Dataset, Layer, Output
-
-
-class ProcessException(Exception):
-    def __init__(self, message):
-        self.message = message
+from ..processing import (
+    process_all,
+    process_pendings,
+    process_hazardset,
+    )
 
 
 def main(argv=sys.argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument('hazard_set', help='The hazard set identifier')
+    parser.add_argument(
+        '--hazard_set',  dest='hazard_set', action='store',
+        help='The hazard set identifier')
     parser.add_argument(
         '--force', dest='force',
         action='store_const', const=True, default=False,
@@ -35,102 +27,11 @@ def main(argv=sys.argv):
     engine = engine_from_config(settings, 'sqlalchemy.')
     DBSession.configure(bind=engine)
 
-    try:
-        execute(DBSession, args.hazard_set, args.force)
-    except ProcessException as e:
-        print e.message
-
-
-def execute(hazard_set_id, force=False):
-    chrono = datetime.datetime.now()
-
-    dataset = DBSession.query(Dataset).get(hazard_set_id)
-    if dataset is None:
-        raise ProcessException('Dataset {} does not exist.'
-                               .format(hazard_set_id))
-
-    if dataset.processed:
-        if force:
-            dataset.processed = False
-            DBSession.flush()
+    if args.hazard_set is not None:
+        with transaction.manager:
+            process_hazardset(args.hazard_set, args.force)
+    else:
+        if args.force:
+            process_all()
         else:
-            raise ProcessException('Dataset {} has already been processed.'
-                                   .format(hazard_set_id))
-
-    # lean previous outputs
-    DBSession.query(Output) \
-        .filter(hazard_set_id == hazard_set_id) \
-        .delete()
-
-    print 'Reading raster data'
-    threshold = settings['threshold']
-    rasters = []
-    with rasterio.drivers():
-        for return_period in settings['return_periods']:
-            hazard_level = settings['return_periods'].index(return_period) + 1
-            layer = (
-                DBSession.query(Layer)
-                .filter(Layer.hazard_set_id == hazard_set_id)
-                .filter(Layer.return_period == return_period)
-                .first()
-            )
-            if layer is None:
-                raise ProcessException('Layer {} {}) does not exist.'
-                                       .format(hazard_set_id, return_period))
-
-            # Register GDAL format drivers and configuration options with a
-            # context manager.
-            with rasterio.open(layer.path()) as src:
-                src_data = src.read()
-
-            dst_data = (src_data > threshold).astype(rasterio.uint8)
-            rasters.append((dst_data, hazard_level))
-
-    project = partial(pyproj.transform,
-                      pyproj.Proj(init='epsg:3857'),
-                      pyproj.Proj(init='epsg:4326'))
-
-    print 'Reading admin divisions'
-    admindivs = (
-        DBSession.query(AdministrativeDivision)
-        .filter(AdministrativeDivision.leveltype_id == 2)
-    )
-
-    print 'Processing'
-    current = 0
-    total = admindivs.count()
-    for admindiv in admindivs:
-        current += 1
-
-        if admindiv.geom is None:
-            print admindiv.id, admindiv.code, admindiv.name, ' null geometry'
-            continue
-
-        division = features.rasterize(
-            ((g, 1) for g in [transform(project, to_shape(admindiv.geom))]),
-            out_shape=src.shape,
-            transform=src.transform,
-            all_touched=True
-            )
-
-        output = Output()
-        output.admin_id = admindiv.id
-        output.hazard_set_id = hazard_set_id
-        output.hazard_level = 4
-        for (raster, hazard_level) in rasters:
-            masked = numpy.ma.masked_array(raster, mask=~division.astype(bool))
-            if numpy.max(masked) > 0:
-                output.hazard_level = hazard_level
-
-        DBSession.add(output)
-
-        percent = int(100.0 * current / total)
-        if percent % 1 == 0:
-            print '... processed {}%'.format(percent)
-
-    dataset.processed = True
-    print ('Successfully processed {} divisions:'
-           .format(current), datetime.datetime.now() - chrono)
-
-    print 'Committing transaction'
-    DBSession.commit()
+            process_pendings()

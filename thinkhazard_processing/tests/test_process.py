@@ -2,9 +2,9 @@ import unittest
 import numpy as np
 from mock import Mock, patch
 from rasterio._io import RasterReader
-from ..models import DBSession, Output
-from ..scripts.process import execute
-from . import hazard_set
+from thinkhazard_common.models import DBSession
+from ..models import Output
+from ..processing import process_all
 
 
 def rasterio_open(reader):
@@ -39,22 +39,22 @@ class TestProcess(unittest.TestCase):
         rasterio_open.return_period = None
         rasterio_open.value = None
 
-        execute(hazard_set, force=True)
+        process_all()
         output = DBSession.query(Output).first()
-        self.assertEqual(output.hazard_level, 4)
+        self.assertEqual(output.hazardlevel.mnemonic, 'NPR')
 
     @patch('rasterio.open')
     def test_process_low(self, open_mock):
         '''Test value > threshold in first layer'''
         open_mock.side_effect = [
-            rasterio_open(global_reader(100.0)),
             rasterio_open(global_reader()),
-            rasterio_open(global_reader())
+            rasterio_open(global_reader()),
+            rasterio_open(global_reader(100.0))
         ]
 
-        execute(hazard_set, force=True)
+        process_all()
         output = DBSession.query(Output).first()
-        self.assertEqual(output.hazard_level, 1)
+        self.assertEqual(output.hazardlevel.mnemonic, 'LOW')
 
     @patch('rasterio.open')
     def test_process_medium(self, open_mock):
@@ -65,19 +65,19 @@ class TestProcess(unittest.TestCase):
             rasterio_open(global_reader())
         ]
 
-        execute(hazard_set, force=True)
+        process_all()
         output = DBSession.query(Output).first()
-        self.assertEqual(output.hazard_level, 2)
+        self.assertEqual(output.hazardlevel.mnemonic, 'MED')
 
     @patch('rasterio.open', side_effect=rasterio_open)
     def test_process_high(self, open_mock):
         '''Test value > threshold in third layer'''
         open_mock.side_effect = [
+            rasterio_open(global_reader(100.0)),
             rasterio_open(global_reader()),
-            rasterio_open(global_reader()),
-            rasterio_open(global_reader(100.0))
+            rasterio_open(global_reader())
         ]
 
-        execute(hazard_set, force=True)
+        process_all()
         output = DBSession.query(Output).first()
-        self.assertEqual(output.hazard_level, 3)
+        self.assertEqual(output.hazardlevel.mnemonic, 'HIG')
