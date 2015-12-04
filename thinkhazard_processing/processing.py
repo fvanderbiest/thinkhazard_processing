@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import transaction
 import datetime
 import numpy
 import rasterio
 import pyproj
-import transaction
 from rasterio import features
 from shapely.ops import transform
 from functools import partial
@@ -29,28 +29,27 @@ class ProcessException(Exception):
 
 
 def process_pendings():
-    ids = (
-        DBSession.query(HazardSet.id)
-        .filter(HazardSet.complete.is_(True))
+    ids = DBSession.query(HazardSet.id) \
+        .filter(HazardSet.complete.is_(True)) \
         .filter(HazardSet.processed.is_(False))
-    )
     for id in ids:
-        with transaction.manager:
-            process_hazardset(id)
+        process_hazardset(id)
 
 
 def process_all():
-    for id in DBSession.query(HazardSet.id):
-        with transaction.manager:
-            process_hazardset(id, force=True)
+    ids = DBSession.query(HazardSet.id) \
+        .filter(HazardSet.complete.is_(True))
+    for id in ids:
+        process_hazardset(id, force=True)
 
 
 def process_hazardset(hazardset_id, force=False):
+    print hazardset_id
     chrono = datetime.datetime.now()
 
     hazardset = DBSession.query(HazardSet).get(hazardset_id)
     if hazardset is None:
-        raise ProcessException('Dataset {} does not exist.'
+        raise ProcessException('HazardSet {} does not exist.'
                                .format(hazardset_id))
 
     if hazardset.processed:
@@ -58,7 +57,7 @@ def process_hazardset(hazardset_id, force=False):
             hazardset.processed = False
             DBSession.flush()
         else:
-            raise ProcessException('Dataset {} has already been processed.'
+            raise ProcessException('HazardSet {} has already been processed.'
                                    .format(hazardset_id))
 
     # lean previous outputs
@@ -140,6 +139,7 @@ def process_hazardset(hazardset_id, force=False):
 
     hazardset.processed = True
     DBSession.flush()
+    transaction.commit()
 
     print ('Successfully processed {} divisions:'
            .format(current), datetime.datetime.now() - chrono)
