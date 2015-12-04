@@ -1,8 +1,8 @@
 import yaml
 from sqlalchemy import engine_from_config
-import transaction
 
 from .. import settings
+from ..scripts.initializedb import initdb_processing
 from .test_data import populate
 
 
@@ -15,11 +15,7 @@ with open(local_settings_path, 'r') as f:
 
 def populate_db():
     engine = engine_from_config(settings, 'sqlalchemy.')
-
-    from ..scripts.initializedb import initdb_processing
     initdb_processing(engine, True)
-
-    with transaction.manager:
-        populate()
+    populate()
 
 populate_db()
