@@ -10,7 +10,12 @@ from sqlalchemy import (
     )
 from sqlalchemy.orm import relationship
 
-from thinkhazard_common.models import Base
+from thinkhazard_common.models import (
+    DBSession,
+    Base,
+    HazardLevel,
+    )
+
 from . import settings
 
 
@@ -57,9 +62,22 @@ class HazardSet(Base):
     hazardtype = relationship('HazardType', backref="hazardsets")
 
     def path(self):
-        return os.path.join(settings['data_path'],
-                            'datasets',
-                            self.hazard_set_id)
+        return os.path.join(settings['data_path'], 'datasets', self.id)
+
+    def layerByLevel(self, level):
+        hazardlevel = HazardLevel.get(level)
+        return DBSession.query(Layer) \
+            .filter(Layer.hazardset_id == self.id) \
+            .filter(Layer.hazardlevel_id == hazardlevel.id) \
+            .one_or_none()
+
+    def checkCompleted(self):
+        for level in (u'LOW', u'MED', u'HIG'):
+            layer = self.layerByLevel(level)
+            if layer is None or not layer.downloaded:
+                return False
+        self.complete = True
+        return True
 
 
 class Layer(Base):
@@ -105,6 +123,9 @@ class Layer(Base):
 
     hazardset = relationship("HazardSet", backref='layers')
     hazardlevel = relationship("HazardLevel")
+
+    def name(self):
+        return '{}-{}'.format(self.hazardset_id, self.return_period)
 
     def path(self):
         return os.path.join(settings['data_path'],
