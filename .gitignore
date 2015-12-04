@@ -2,3 +2,4 @@
 *.egg-info/
 .build
 local.tests.yaml
+local_settings.yaml
