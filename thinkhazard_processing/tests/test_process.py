@@ -75,7 +75,7 @@ class TestProcess(unittest.TestCase):
         rasterio_open.value = None
         process(force=True)
         output = DBSession.query(Output).first()
-        self.assertEqual(output.hazardlevel.mnemonic, 'NPR')
+        self.assertEqual(output.hazardlevel.mnemonic, 'VLO')
 
     @patch('rasterio.open')
     def test_process_low(self, open_mock):

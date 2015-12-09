@@ -53,7 +53,7 @@ def process_hazardset(hazardset, force=False):
     chrono = datetime.datetime.now()
     last_percent = 0
 
-    npr = HazardLevel.get(u'NPR')
+    level_VLO = HazardLevel.get(u'VLO')
 
     if hazardset is None:
         raise ProcessException('HazardSet {} does not exist.'
@@ -169,7 +169,7 @@ def process_hazardset(hazardset, force=False):
                         break
                     else:
                         if output.hazardlevel is None:
-                            output.hazardlevel = npr
+                            output.hazardlevel = level_VLO
 
                     if numpy.max(masked) > 0:
                         output.hazardlevel = layer.hazardlevel
