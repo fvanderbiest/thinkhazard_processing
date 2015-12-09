@@ -2,7 +2,7 @@ sqlalchemy.url: postgresql://www-data:www-data@localhost:5432/thinkhazard_proces
 
 hazard_types:
   FL:
-    hazard_type: flood
+    hazard_type: river_flood
     global:
       return_periods:
         LOW: 1000
@@ -13,7 +13,7 @@ hazard_types:
         LOW: 100
         MED: 50
         HIG: 25
-    threshold:
+    thresholds:
       cm:
       dm:
       m:
@@ -29,9 +29,9 @@ hazard_types:
         LOW: 2500
         MED: 475
         HIG: 100
-    threshold:
+    thresholds:
       PGA-gal: 98.0665
-      PGA-g: 0.1
-      SA-g: 0.1
+      PGA-g: 98.0665
+      SA-g: 98.0665
 
 data_path: /tmp

@@ -1,13 +1,13 @@
 import sys
 from sqlalchemy import engine_from_config
 
-from .. import models  # NOQA
-from .. import settings
-
 from thinkhazard_common.scripts.initializedb import (
     initdb,
     schema_exists,
     )
+
+from ..models import Base  # NOQA
+from .. import settings
 
 
 def initdb_processing(engine, drop_all=False):

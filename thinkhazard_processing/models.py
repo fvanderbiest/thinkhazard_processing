@@ -62,7 +62,9 @@ class HazardSet(Base):
     hazardtype = relationship('HazardType', backref="hazardsets")
 
     def path(self):
-        return os.path.join(settings['data_path'], 'datasets', self.id)
+        return os.path.join(settings['data_path'],
+                            'hazardsets',
+                            self.id)
 
     def layerByLevel(self, level):
         hazardlevel = HazardLevel.get(level)
@@ -70,14 +72,6 @@ class HazardSet(Base):
             .filter(Layer.hazardset_id == self.id) \
             .filter(Layer.hazardlevel_id == hazardlevel.id) \
             .one_or_none()
-
-    def checkCompleted(self):
-        for level in (u'LOW', u'MED', u'HIG'):
-            layer = self.layerByLevel(level)
-            if layer is None or not layer.downloaded:
-                return False
-        self.complete = True
-        return True
 
 
 class Layer(Base):
@@ -121,15 +115,15 @@ class Layer(Base):
     # when the geotiff file has been downloaded
     downloaded = Column(Boolean, nullable=False, default=False)
 
-    hazardset = relationship("HazardSet", backref='layers')
-    hazardlevel = relationship("HazardLevel")
+    hazardset = relationship('HazardSet', backref='layers')
+    hazardlevel = relationship('HazardLevel')
 
     def name(self):
         return '{}-{}'.format(self.hazardset_id, self.return_period)
 
     def path(self):
         return os.path.join(settings['data_path'],
-                            'datasets',
+                            'hazardsets',
                             self.hazardset_id,
                             '{}.tif'.format(self.return_period))
 

@@ -6,12 +6,18 @@ import numpy
 import rasterio
 import pyproj
 from rasterio import features
-from shapely.ops import transform
+from shapely.ops import (
+    transform,
+    cascaded_union
+)
+from shapely.geometry import Polygon
 from functools import partial
 from geoalchemy2.shape import to_shape
+from sqlalchemy import func
 
 from thinkhazard_common.models import (
     DBSession,
+    AdminLevelType,
     AdministrativeDivision,
     HazardLevel,
     )
@@ -28,118 +34,170 @@ class ProcessException(Exception):
         self.message = message
 
 
-def process_pendings():
-    ids = DBSession.query(HazardSet.id) \
-        .filter(HazardSet.complete.is_(True)) \
-        .filter(HazardSet.processed.is_(False))
-    for id in ids:
-        process_hazardset(id)
+def process(hazardset_id=None, force=False):
+    hazardsets = DBSession.query(HazardSet)
+    hazardsets = hazardsets.filter(HazardSet.complete.is_(True))
+    if hazardset_id is not None:
+        hazardsets = hazardsets.filter(HazardSet.id == hazardset_id)
+    if not force:
+        hazardsets = hazardsets.filter(HazardSet.processed.is_(False))
+    if hazardsets.count() == 0:
+        print 'No hazardsets to process'
+        return
+    for hazardset in hazardsets:
+        process_hazardset(hazardset, force=force)
 
 
-def process_all():
-    ids = DBSession.query(HazardSet.id) \
-        .filter(HazardSet.complete.is_(True))
-    for id in ids:
-        process_hazardset(id, force=True)
-
-
-def process_hazardset(hazardset_id, force=False):
-    print hazardset_id
+def process_hazardset(hazardset, force=False):
+    print hazardset.id
     chrono = datetime.datetime.now()
+    last_percent = 0
 
-    hazardset = DBSession.query(HazardSet).get(hazardset_id)
+    npr = HazardLevel.get(u'NPR')
+
     if hazardset is None:
         raise ProcessException('HazardSet {} does not exist.'
-                               .format(hazardset_id))
+                               .format(hazardset.id))
 
     if hazardset.processed:
         if force:
             hazardset.processed = False
-            DBSession.flush()
         else:
             raise ProcessException('HazardSet {} has already been processed.'
-                                   .format(hazardset_id))
+                                   .format(hazardset.id))
 
-    # lean previous outputs
+    # clean previous outputs
     DBSession.query(Output) \
-        .filter(hazardset_id == hazardset_id) \
+        .filter(Output.hazardset_id == hazardset.id) \
         .delete()
+    DBSession.flush()
 
     hazardtype = hazardset.hazardtype
     hazardtype_settings = settings['hazard_types'][hazardtype.mnemonic]
-    threshold = hazardtype_settings['threshold']
+    thresholds = hazardtype_settings['thresholds']
 
-    project = partial(pyproj.transform,
-                      pyproj.Proj(init='epsg:3857'),
-                      pyproj.Proj(init='epsg:4326'))
+    project = partial(
+        pyproj.transform,
+        pyproj.Proj(init='epsg:3857'),
+        pyproj.Proj(init='epsg:4326'))
 
-    print 'Reading raster data'
+    layers = {}
+    for level in (u'HIG', u'MED', u'LOW'):
+        hazardlevel = HazardLevel.get(level)
+        layer = DBSession.query(Layer) \
+            .filter(Layer.hazardset_id == hazardset.id) \
+            .filter(Layer.hazardlevel_id == hazardlevel.id) \
+            .one()
+        layers[level] = layer
+
     with rasterio.drivers():
-        # Register GDAL format drivers and configuration options with a
-        # context manager.
-        layers = []
-        for level in (u'HIG', u'MED', u'LOW'):
-            hazardlevel = HazardLevel.get(level)
-            layer = DBSession.query(Layer) \
-                .filter(Layer.hazardset_id == hazardset.id) \
-                .filter(Layer.hazardlevel_id == hazardlevel.id) \
-                .one()
+        with rasterio.open(layers['HIG'].path()) as src_hig, \
+                rasterio.open(layers['MED'].path()) as src_med, \
+                rasterio.open(layers['LOW'].path()) as src_low:
+            readers = {}
+            readers['HIG'] = src_hig
+            readers['MED'] = src_med
+            readers['LOW'] = src_low
 
-            with rasterio.open(layer.path()) as src:
-                src_data = src.read()
-                layer.shape = src.shape
-                layer.transform = src.transform
-            threshold_value = threshold[layer.hazardunit]
-            layer.data = (src_data > threshold_value).astype(rasterio.uint8)
+            polygon_hig = polygonFromBounds(src_hig.bounds)
+            polygon_med = polygonFromBounds(src_med.bounds)
+            polygon_low = polygonFromBounds(src_low.bounds)
+            polygon = cascaded_union((
+                polygon_hig,
+                polygon_med,
+                polygon_low))
 
-            layers.append(layer)
+            adminlevel_REG = AdminLevelType.get(u'REG')
 
-    print 'Reading admin divisions'
-    admindivs = (
-        DBSession.query(AdministrativeDivision)
-        .filter(AdministrativeDivision.leveltype_id == 2)
-    )
+            admindivs = DBSession.query(AdministrativeDivision) \
+                .filter(AdministrativeDivision.leveltype_id == adminlevel_REG.id) \
 
-    print 'Processing'
-    current = 0
-    total = admindivs.count()
-    for admindiv in admindivs:
-        current += 1
+            if hazardset.local:
+                admindivs = admindivs \
+                    .filter(AdministrativeDivision.geom.intersects(polygon.wkt)) \
+                    .filter(func.ST_Intersects(
+                        func.ST_Transform(AdministrativeDivision.geom, 4326),
+                        func.ST_GeomFromText(polygon.wkt, 4326)))
 
-        if admindiv.geom is None:
-            print admindiv.id, admindiv.code, admindiv.name, ' null geometry'
-            continue
+            current = 0
+            total = admindivs.count()
+            for admindiv in admindivs:
+                # print ' ', admindiv.id, admindiv.code, admindiv.name
 
-        output = Output()
-        output.hazardset = hazardset
-        output.administrativedivision = admindiv
-        output.hazardlevel = HazardLevel.get(u'NPR')
+                current += 1
+                if admindiv.geom is None:
+                    print '    has null geometry'
+                    continue
 
-        for layer in layers:
-            division = features.rasterize(
-                ((g, 1) for g in [transform(project,
-                                            to_shape(admindiv.geom))]),
-                out_shape=layer.shape,
-                transform=layer.transform,
-                all_touched=True)
+                reprojected = transform(
+                    project,
+                    to_shape(admindiv.geom))
 
-            masked = numpy.ma.masked_array(layer.data,
-                                           mask=~division.astype(bool))
-            if numpy.max(masked) > 0:
-                output.hazardlevel = layer.hazardlevel
+                output = Output()
+                output.hazardset = hazardset
+                output.administrativedivision = admindiv
+                output.hazardlevel = None
 
-        # TODO: calculate coverage ratio
-        output.coverage_ratio = 100
+                # TODO: calculate coverage ratio
+                output.coverage_ratio = 100
 
-        DBSession.add(output)
+                for level in (u'HIG', u'MED', u'LOW'):
+                    layer = layers[level]
+                    src = readers[level]
 
-        percent = int(100.0 * current / total)
-        if percent % 1 == 0:
-            print '... processed {}%'.format(percent)
+                    if not reprojected.intersects(polygon):
+                        continue
+
+                    window = src.window(*reprojected.bounds)
+                    data = src.read(1, window=window, masked=True)
+                    if data.shape[0] * data.shape[1] == 0:
+                        continue
+
+                    threshold = thresholds[layer.hazardunit]
+                    positive_data = (data > threshold).astype(rasterio.uint8)
+
+                    division = features.rasterize(
+                        ((g, 1) for g in [reprojected]),
+                        out_shape=data.shape,
+                        transform=src.window_transform(window),
+                        all_touched=True)
+
+                    masked = numpy.ma.masked_array(positive_data,
+                                                   mask=~division.astype(bool))
+
+                    if str(numpy.max(masked)) == str(numpy.ma.masked):
+                        break
+                    else:
+                        if output.hazardlevel is None:
+                            output.hazardlevel = npr
+
+                    if numpy.max(masked) > 0:
+                        output.hazardlevel = layer.hazardlevel
+                        break
+
+                if output.hazardlevel is not None:
+                    # print '    hazardlevel :', output.hazardlevel.mnemonic
+                    DBSession.add(output)
+
+                percent = int(100.0 * current / total)
+                if percent % 10 == 0 and percent != last_percent:
+                    print '  ... processed {}%'.format(percent)
+                    last_percent = percent
+                    pass
 
     hazardset.processed = True
+
     DBSession.flush()
     transaction.commit()
 
-    print ('Successfully processed {} divisions:'
-           .format(current), datetime.datetime.now() - chrono)
+    print ('Successfully processed {} divisions: {}'
+           .format(current, datetime.datetime.now() - chrono))
+
+
+def polygonFromBounds(bounds):
+    return Polygon([
+        (bounds[0], bounds[1]),
+        (bounds[0], bounds[3]),
+        (bounds[2], bounds[3]),
+        (bounds[2], bounds[1]),
+        (bounds[0], bounds[1])])

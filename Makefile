@@ -22,6 +22,10 @@ install: .build/requirements.timestamp
 initdb: .build/requirements.timestamp
 	.build/venv/bin/initialize_db
 
+.PHONY: process
+process: .build/requirements.timestamp
+	.build/venv/bin/process
+
 .PHONY: check
 check: flake8
 
