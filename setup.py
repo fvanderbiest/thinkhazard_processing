@@ -28,5 +28,6 @@ setup(name='thinkhazard_processing',
       entry_points="""\
       [console_scripts]
       initialize_db = thinkhazard_processing.scripts.initializedb:main
+      process = thinkhazard_processing.scripts.process:main
       """,
       )

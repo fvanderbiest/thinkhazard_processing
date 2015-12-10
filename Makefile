@@ -22,6 +22,10 @@ install: .build/requirements.timestamp
 initdb: .build/requirements.timestamp
 	.build/venv/bin/initialize_db
 
+.PHONY: process
+process: .build/requirements.timestamp
+	.build/venv/bin/process
+
 .PHONY: check
 check: flake8
 
@@ -48,6 +52,7 @@ test: .build/dev-requirements.timestamp
 
 .build/requirements.timestamp: .build/venv setup.py requirements.txt
 	mkdir -p $(dir $@)
+	.build/venv/bin/pip install numpy==1.10.1
 	.build/venv/bin/pip install -r requirements.txt
 	touch $@
 

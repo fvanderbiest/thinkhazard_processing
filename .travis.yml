@@ -1,16 +1,33 @@
 language: python
 
+python:
+- 2.7
+
 cache:
   directories:
     - $HOME/.cache/pip
 
-python:
-- 2.7
+addons:
+  postgresql: "9.1"
 
-sudo: false
+before_install:
+- sudo add-apt-repository ppa:ubuntugis/ubuntugis-unstable -y
+- sudo rm -f /etc/apt/sources.list.d/pgdg-source.list
+- sudo apt-get remove postgresql-9.1-postgis-2.1
+- sudo apt-get update -qq
+- apt-cache search postgresql
+- sudo apt-get install --no-install-recommends
+    libgdal-dev
+    postgresql-9.1-postgis-2.1
 
 install:
 - make install
+
+before_script:
+- createuser www-data --no-superuser --no-createdb --no-createrole -U postgres
+- createdb -O www-data thinkhazard_tests -U postgres
+- psql -d thinkhazard_tests -c 'CREATE EXTENSION postgis;' -U postgres
+- "echo sqlalchemy.url: postgresql://www-data:www-data@localhost/thinkhazard_tests > local.tests.yaml"
 
 script:
 - make check

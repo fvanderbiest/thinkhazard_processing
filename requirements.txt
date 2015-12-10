@@ -2,5 +2,8 @@ sqlalchemy==1.0.9
 psycopg2==2.6.1
 geoalchemy2==0.2.6
 PyYAML==3.11
+rasterio==0.30.0
+pyproj==1.9.4
+shapely==1.5.13
 git+https://github.com/GFDRR/thinkhazard_common.git#egg=thinkhazard_common
 -e .
