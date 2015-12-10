@@ -24,6 +24,7 @@ from ..models import (
     Output,
     )
 from ..processing import process
+from common import new_geonode_id
 
 
 def populate():
@@ -187,11 +188,3 @@ def populate_processing():
 
     hazardset.complete = True
     DBSession.flush()
-
-
-def new_geonode_id():
-    from sqlalchemy import func
-    row = DBSession.query(func.max(Layer.geonode_id)).one_or_none()
-    if row[0] is None:
-        return 1
-    return row[0] + 1

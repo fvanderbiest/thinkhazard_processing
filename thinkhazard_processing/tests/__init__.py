@@ -10,8 +10,8 @@ with open(local_settings_path, 'r') as f:
     settings.update(yaml.load(f.read()))
 
 
-def populate_db():
+def initdb():
     engine = engine_from_config(settings, 'sqlalchemy.')
     initdb_processing(engine, True)
 
-populate_db()
+initdb()
