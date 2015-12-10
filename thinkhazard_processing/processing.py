@@ -114,7 +114,10 @@ def process_hazardset(hazardset, force=False):
 
             if hazardset.local:
                 admindivs = admindivs \
-                    .filter(AdministrativeDivision.geom.intersects(polygon.wkt)) \
+                    .filter(
+                        func.ST_Transform(AdministrativeDivision.geom, 4326) \
+                        .intersects(
+                            func.ST_GeomFromText(polygon.wkt, 4326))) \
                     .filter(func.ST_Intersects(
                         func.ST_Transform(AdministrativeDivision.geom, 4326),
                         func.ST_GeomFromText(polygon.wkt, 4326)))
