@@ -123,13 +123,14 @@ def process_hazardset(hazardset, force=False):
                         func.ST_GeomFromText(polygon.wkt, 4326)))
 
             current = 0
+            outputs = 0
             total = admindivs.count()
             for admindiv in admindivs:
                 # print ' ', admindiv.id, admindiv.code, admindiv.name
 
                 current += 1
                 if admindiv.geom is None:
-                    print '    has null geometry'
+                    print '   ', admindiv.code, admindiv.name, 'has null geometry'
                     continue
 
                 reprojected = transform(
@@ -181,6 +182,7 @@ def process_hazardset(hazardset, force=False):
                 if output.hazardlevel is not None:
                     # print '    hazardlevel :', output.hazardlevel.mnemonic
                     DBSession.add(output)
+                    outputs += 1
 
                 percent = int(100.0 * current / total)
                 if percent % 10 == 0 and percent != last_percent:
@@ -193,8 +195,8 @@ def process_hazardset(hazardset, force=False):
     DBSession.flush()
     transaction.commit()
 
-    print ('Successfully processed {} divisions: {}'
-           .format(current, datetime.datetime.now() - chrono))
+    print ('Successfully processed {} divisions, {} outputs generated in {}'
+           .format(total, outputs, datetime.datetime.now() - chrono))
 
 
 def polygonFromBounds(bounds):
