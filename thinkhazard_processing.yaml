@@ -14,9 +14,9 @@ hazard_types:
         MED: 50
         HIG: 25
     thresholds:
-      cm:
-      dm:
-      m:
+      cm: 100
+      dm: 10
+      m: 1
   EQ:
     hazard_type: earthquake
     global:
