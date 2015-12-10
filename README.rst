@@ -13,8 +13,14 @@ Getting Started
 Create a Python virtual environment and install the project into it::
 
     $ make install
+    
+Create a database and then populate it with::
 
-Configure the project
+    $ make initdb
+
+For more options, see::
+
+    $ make help
 
 Use ``local_settings.yaml``
 ===========================
@@ -30,6 +36,11 @@ For example, you can define a specific database connection with a
 
 Run tests
 =========
+
+Prior to running the tests, one has to create a dedicated database, 
+eg. thinkhazard_tests, and register it with::
+
+    $ echo "sqlalchemy.url: postgresql://www-data:www-data@localhost/thinkhazard_tests" > local.tests.yaml
 
 Run the tests with the following command::
 
