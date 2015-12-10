@@ -65,9 +65,10 @@ def upscale_hazardcategories(target_adminlevel_mnemonic):
             hazardcategory = DBSession.query(HazardCategory) \
                 .join((AdministrativeDivision, HazardCategory.administrativedivisions)) \
                 .join(HazardType) \
+                .join(HazardLevel) \
                 .filter(HazardType.id == hazardtype.id) \
                 .filter(AdministrativeDivision.parent == admindiv) \
-                .order_by(HazardCategory.hazardlevel_id.desc()).first()
+                .order_by(HazardLevel.order.asc()).first()
             if hazardcategory:
                 # find the highest hazardlevel for all children admindivs
                 print '[upscaling] admindiv {} inherits hazardlevel {} for {}'\
