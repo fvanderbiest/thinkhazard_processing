@@ -17,9 +17,12 @@ from sqlalchemy import func
 
 from thinkhazard_common.models import (
     DBSession,
-    AdminLevelType,
     AdministrativeDivision,
+    AdminLevelType,
     HazardLevel,
+    HazardType,
+    HazardCategory,
+    hazardcategory_administrativedivision_table,
     )
 from .models import (
     HazardSet,
@@ -46,6 +49,87 @@ def process(hazardset_id=None, force=False):
         return
     for hazardset in hazardsets:
         process_hazardset(hazardset, force=force)
+
+
+def upscale_hazardcategories(target_adminlevel_mnemonic):
+    # identify the admin divisions matching the given level:
+    admindivs = DBSession.query(AdministrativeDivision)\
+        .join(AdminLevelType) \
+        .filter(AdminLevelType.mnemonic == target_adminlevel_mnemonic)
+    hazardtypes = DBSession.query(HazardType)
+    # for each of these admin divisions and hazard types,
+    # identify the highest HazardCategory among their children:
+    for admindiv in admindivs:
+        # identify max(level) for each hazardtype across children
+        for hazardtype in hazardtypes:
+            hazardcategory = DBSession.query(HazardCategory) \
+                .join((AdministrativeDivision, HazardCategory.administrativedivisions)) \
+                .join(HazardType) \
+                .filter(HazardType.id == hazardtype.id) \
+                .filter(AdministrativeDivision.parent == admindiv) \
+                .order_by(HazardCategory.hazardlevel_id.desc()).first()
+            if hazardcategory:
+                # find the highest hazardlevel for all children admindivs
+                print '[upscaling] admindiv {} inherits hazardlevel {} for {}'\
+                    .format(admindiv.code, hazardcategory.hazardlevel_id,
+                            hazardcategory.hazardtype.mnemonic)
+                admindiv.hazardcategories.append(hazardcategory)
+                DBSession.add(admindiv)
+
+
+def process_outputs():
+    print "Decision Tree running..."
+    # first of all, remove all records
+    # in the datamart table linking admin divs with hazard categories:
+    hazardcategory_administrativedivision_table.delete()
+    # identify the admin level for which we run the decision tree:
+    # (REG)ion aka admin level 2
+    dt_level = DBSession.query(AdminLevelType)\
+        .filter(AdminLevelType.mnemonic == u'REG').one()
+    # then, identify the unique (admindiv, hazardtype) tuples
+    # contained in the Output table:
+    admindiv_hazardtype_tuples = (
+        DBSession.query(AdministrativeDivision, HazardType).distinct()
+        .join(Output)
+        .join(HazardSet)
+        .join(HazardType)
+        # the following should not be necessary in production
+        # because only the lowest admin levels should be inserted
+        # in the Output table:
+        .filter(AdministrativeDivision.leveltype_id == dt_level.id)
+        # not necessary, but practical for debugging:
+        .order_by(AdministrativeDivision.code)
+    )
+    # for each tuple, identify the most relevant HazardSet
+    # in the light of the criteria that we all agreed on (cf Decision Tree):
+    for (admindiv, hazardtype) in admindiv_hazardtype_tuples:
+        (hazardset, output) = DBSession.query(HazardSet, Output) \
+            .join(Output) \
+            .filter(Output.admin_id == admindiv.id) \
+            .filter(HazardSet.hazardtype_id == hazardtype.id) \
+            .order_by(HazardSet.calculation_method_quality.desc(),
+                      HazardSet.scientific_quality.desc(),
+                      HazardSet.local.desc(),
+                      HazardSet.data_lastupdated_date.desc()).first()
+        print "[decision tree] admindiv {} gets hazardlevel {} from {} for {}"\
+            .format(admindiv.code, output.hazardlevel_id, hazardset.id,
+                    hazardtype.mnemonic)
+        # find the relevant HazardCategory for the current hazardtype
+        # and the hazardset's hazardlevel
+        hazardcategory = DBSession.query(HazardCategory) \
+            .filter(HazardCategory.hazardtype_id == hazardtype.id) \
+            .filter(HazardCategory.hazardlevel_id == output.hazardlevel_id) \
+            .one()
+        # append new hazardcategory to current admin div:
+        admindiv.hazardcategories.append(hazardcategory)
+        DBSession.add(admindiv)
+
+    # UpScaling level2 (REG)ion -> level1 (PRO)vince
+    upscale_hazardcategories(u'PRO')
+    # UpScaling level1 (PRO)vince -> level0 (COU)ntry
+    upscale_hazardcategories(u'COU')
+
+    transaction.commit()
 
 
 def process_hazardset(hazardset, force=False):
