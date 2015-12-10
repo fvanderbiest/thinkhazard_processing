@@ -115,7 +115,7 @@ def process_hazardset(hazardset, force=False):
             if hazardset.local:
                 admindivs = admindivs \
                     .filter(
-                        func.ST_Transform(AdministrativeDivision.geom, 4326) \
+                        func.ST_Transform(AdministrativeDivision.geom, 4326)
                         .intersects(
                             func.ST_GeomFromText(polygon.wkt, 4326))) \
                     .filter(func.ST_Intersects(
@@ -130,7 +130,8 @@ def process_hazardset(hazardset, force=False):
 
                 current += 1
                 if admindiv.geom is None:
-                    print '   ', admindiv.code, admindiv.name, 'has null geometry'
+                    print '   ', ('{}-{} has null geometry'
+                                  .format(admindiv.code, admindiv.name))
                     continue
 
                 reprojected = transform(
