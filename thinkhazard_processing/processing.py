@@ -306,8 +306,8 @@ def polygonFromBounds(bounds):
 
 def get_threshold(hazardtype, local, level, unit):
     mysettings = settings['hazard_types'][hazardtype]['thresholds']
-    if type(mysettings) is float:
-        return mysettings
+    if type(mysettings) in (int, float):
+        return float(mysettings)
     if 'local' in mysettings.keys():
         mysettings = mysettings['local'] if local else mysettings['global']
     if 'HIG' in mysettings.keys():
