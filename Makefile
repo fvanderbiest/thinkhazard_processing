@@ -13,6 +13,7 @@ help:
 	@echo "- initdb                  Initialize database"
 	@echo "- check                   Check the code with flake8"
 	@echo "- test                    Run the unit tests"
+	@echo "- process                 Run the processes"
 	@echo "- decisiontree            Run the decision tree"
 	@echo
 
@@ -26,6 +27,10 @@ initdb: .build/requirements.timestamp
 .PHONY: process
 process: .build/requirements.timestamp
 	.build/venv/bin/process
+
+.PHONY: dt
+dt: .build/requirements.timestamp
+	.build/venv/bin/decision_tree
 
 .PHONY: decisiontree
 decisiontree: .build/requirements.timestamp
