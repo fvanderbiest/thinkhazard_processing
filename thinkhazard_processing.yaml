@@ -1,37 +1,47 @@
 sqlalchemy.url: postgresql://www-data:www-data@localhost:5432/thinkhazard_processing
+data_path: /var/sig
 
 hazard_types:
-  FL:
-    hazard_type: river_flood
-    global:
-      return_periods:
-        LOW: 1000
-        MED: 50
-        HIG: 25
-    local:
-      return_periods:
-        LOW: 100
-        MED: 50
-        HIG: 25
-    thresholds:
-      cm: 100
-      dm: 10
-      m: 1
   EQ:
     hazard_type: earthquake
-    global:
-      return_periods:
-        LOW: 2475
-        MED: 475
-        HIG: 250
-    local:
-      return_periods:
-        LOW: 2500
-        MED: 475
-        HIG: 100
-    thresholds:
-      PGA-gal: 98.0665
-      PGA-g: 98.0665
-      SA-g: 98.0665
+    return_periods:
+        HIG: [100, 250]
+        MED: [475, 475]
+        LOW: [2475, 2500]
+    thresholds: 98.0665
 
-data_path: /tmp
+  FL:
+    hazard_type: river_flood
+    return_periods:
+      HIG: [10, 25]
+      MED: [50, 50]
+      LOW: [100, 1000]
+    thresholds:
+      global:
+        cm: 100
+        dm: 10
+        m: 1
+      local:
+        cm: 50
+        dm: 5
+        m: 0.5
+
+  CY:
+    hazard_type: strong_wind
+    return_periods:
+      HIG: [50, 50]
+      MED: [100, 100]
+      LOW: [500, 1000]
+    thresholds:
+      "km/h": 80
+
+  SS:
+    hazard_type: coastal_flood
+    return_periods:
+      HIG: [10, 50]
+      MED: [100, 100]
+      LOW: [250, 1000]
+    thresholds:
+      HIG: 2
+      MED: 0.5
+      LOW: 0.5

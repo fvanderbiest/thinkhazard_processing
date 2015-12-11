@@ -163,12 +163,12 @@ def populate_processing():
     hazardset.metadata_lastupdated_date = datetime.now()
     DBSession.add(hazardset)
 
-    return_periods = hazardtype_settings['global']['return_periods']
-    unit = hazardtype_settings['thresholds'].keys()[0]
+    return_periods = hazardtype_settings['return_periods']
+    unit = 'test'
 
     for level in (u'HIG', u'MED', u'LOW'):
         hazardlevel = HazardLevel.get(level)
-        return_period = return_periods[level]
+        return_period = return_periods[level][0]
 
         layer = Layer()
         layer.title = "{}-{}".format(id, return_period)

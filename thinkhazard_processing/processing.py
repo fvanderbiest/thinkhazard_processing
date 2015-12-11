@@ -158,8 +158,6 @@ def process_hazardset(hazardset, force=False):
     DBSession.flush()
 
     hazardtype = hazardset.hazardtype
-    hazardtype_settings = settings['hazard_types'][hazardtype.mnemonic]
-    thresholds = hazardtype_settings['thresholds']
 
     project = partial(
         pyproj.transform,
@@ -198,6 +196,7 @@ def process_hazardset(hazardset, force=False):
                 .filter(AdministrativeDivision.leveltype_id == adminlevel_REG.id) \
 
             if hazardset.local:
+                # TODO : this could be optimized
                 admindivs = admindivs \
                     .filter(
                         func.ST_Transform(AdministrativeDivision.geom, 4326)
@@ -243,7 +242,18 @@ def process_hazardset(hazardset, force=False):
                     if data.shape[0] * data.shape[1] == 0:
                         continue
 
-                    threshold = thresholds[layer.hazardunit]
+                    threshold = get_threshold(hazardtype.mnemonic,
+                                              layer.local,
+                                              layer.hazardlevel.mnemonic,
+                                              layer.hazardunit)
+                    if threshold is None:
+                        print ("WARNING: no threshold found for {} {} {} {}"
+                               .format(hazardtype.mnemonic,
+                                       'local' if layer.local else 'global',
+                                       layer.hazardlevel.mnemonic,
+                                       layer.hazardunit))
+                        transaction.rollback()
+                        return False
                     positive_data = (data > threshold).astype(rasterio.uint8)
 
                     division = features.rasterize(
@@ -292,3 +302,16 @@ def polygonFromBounds(bounds):
         (bounds[2], bounds[3]),
         (bounds[2], bounds[1]),
         (bounds[0], bounds[1])])
+
+
+def get_threshold(hazardtype, local, level, unit):
+    mysettings = settings['hazard_types'][hazardtype]['thresholds']
+    if type(mysettings) is float:
+        return mysettings
+    if 'local' in mysettings.keys():
+        mysettings = mysettings['local'] if local else mysettings['global']
+    if 'HIG' in mysettings.keys():
+        mysettings = mysettings[level]
+    if unit in mysettings.keys():
+        mysettings = mysettings[unit]
+        return float(mysettings)
