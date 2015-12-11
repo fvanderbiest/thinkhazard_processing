@@ -22,7 +22,7 @@ from thinkhazard_common.models import (
     HazardLevel,
     HazardType,
     HazardCategory,
-    hazardcategory_administrativedivision_table,
+    HazardCategoryAdministrativeDivisionAssociation,
     )
 from .models import (
     HazardSet,
@@ -51,6 +51,16 @@ def process(hazardset_id=None, force=False):
         process_hazardset(hazardset, force=force)
 
 
+def associate_admindiv_hazardcategory(admindiv, hazardcategory, source):
+    a = HazardCategoryAdministrativeDivisionAssociation(source=source)
+    # Note: the source field is currently set to the hazardset id (eg: PA-EQ)
+    # this will be improved in the future.
+    a.hazardcategory = hazardcategory
+    a.administrativedivision = admindiv
+    admindiv.hazardcategories.append(a)
+    DBSession.add(admindiv)
+
+
 def upscale_hazardcategories(target_adminlevel_mnemonic):
     # identify the admin divisions matching the given level:
     admindivs = DBSession.query(AdministrativeDivision)\
@@ -62,27 +72,29 @@ def upscale_hazardcategories(target_adminlevel_mnemonic):
     for admindiv in admindivs:
         # identify max(level) for each hazardtype across children
         for hazardtype in hazardtypes:
-            hazardcategory = DBSession.query(HazardCategory) \
-                .join((AdministrativeDivision, HazardCategory.administrativedivisions)) \
+            association = DBSession.query(HazardCategoryAdministrativeDivisionAssociation) \
+                .join(AdministrativeDivision) \
+                .join(HazardCategory) \
                 .join(HazardType) \
                 .join(HazardLevel) \
                 .filter(HazardType.id == hazardtype.id) \
                 .filter(AdministrativeDivision.parent == admindiv) \
                 .order_by(HazardLevel.order.asc()).first()
-            if hazardcategory:
-                # find the highest hazardlevel for all children admindivs
-                print '[upscaling] admindiv {} inherits hazardlevel {} for {}'\
+            if association:
+                hazardcategory = association.hazardcategory
+                print '[upscaling] admindiv {} inherits hazardlevel {} for {} from hazardset {}'\
                     .format(admindiv.code, hazardcategory.hazardlevel_id,
-                            hazardcategory.hazardtype.mnemonic)
-                admindiv.hazardcategories.append(hazardcategory)
-                DBSession.add(admindiv)
+                            hazardcategory.hazardtype.mnemonic,
+                            association.source)
+                associate_admindiv_hazardcategory(admindiv, hazardcategory,
+                                                  association.source)
 
 
 def process_outputs():
     print "Decision Tree running..."
     # first of all, remove all records
     # in the datamart table linking admin divs with hazard categories:
-    hazardcategory_administrativedivision_table.delete()
+    DBSession.query(HazardCategoryAdministrativeDivisionAssociation).delete()
     # identify the admin level for which we run the decision tree:
     # (REG)ion aka admin level 2
     dt_level = DBSession.query(AdminLevelType)\
@@ -122,8 +134,8 @@ def process_outputs():
             .filter(HazardCategory.hazardlevel_id == output.hazardlevel_id) \
             .one()
         # append new hazardcategory to current admin div:
-        admindiv.hazardcategories.append(hazardcategory)
-        DBSession.add(admindiv)
+        associate_admindiv_hazardcategory(admindiv, hazardcategory,
+                                          hazardset.id)
 
     # UpScaling level2 (REG)ion -> level1 (PRO)vince
     upscale_hazardcategories(u'PRO')
