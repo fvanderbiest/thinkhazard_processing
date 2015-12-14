@@ -24,6 +24,8 @@ from thinkhazard_common.models import (
     HazardCategory,
     HazardCategoryAdministrativeDivisionAssociation,
     )
+from thinkhazard_common.utils import associate_admindiv_hazardcategory
+
 from .models import (
     HazardSet,
     Layer,
@@ -49,16 +51,6 @@ def process(hazardset_id=None, force=False):
         return
     for hazardset in hazardsets:
         process_hazardset(hazardset, force=force)
-
-
-def associate_admindiv_hazardcategory(admindiv, hazardcategory, source):
-    a = HazardCategoryAdministrativeDivisionAssociation(source=source)
-    # Note: the source field is currently set to the hazardset id (eg: PA-EQ)
-    # this will be improved in the future.
-    a.hazardcategory = hazardcategory
-    a.administrativedivision = admindiv
-    admindiv.hazardcategories.append(a)
-    DBSession.add(admindiv)
 
 
 def upscale_hazardcategories(target_adminlevel_mnemonic):
@@ -88,6 +80,7 @@ def upscale_hazardcategories(target_adminlevel_mnemonic):
                             association.source)
                 associate_admindiv_hazardcategory(admindiv, hazardcategory,
                                                   association.source)
+                DBSession.add(admindiv)
 
 
 def process_outputs():
@@ -136,6 +129,7 @@ def process_outputs():
         # append new hazardcategory to current admin div:
         associate_admindiv_hazardcategory(admindiv, hazardcategory,
                                           hazardset.id)
+        DBSession.add(admindiv)
 
     # UpScaling level2 (REG)ion -> level1 (PRO)vince
     upscale_hazardcategories(u'PRO')
