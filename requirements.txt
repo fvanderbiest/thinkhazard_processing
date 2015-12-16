@@ -5,5 +5,5 @@ PyYAML==3.11
 rasterio==0.30.0
 pyproj==1.9.4
 shapely==1.5.13
-git+https://github.com/GFDRR/thinkhazard_common.git#egg=thinkhazard_common
+git+https://github.com/GFDRR/thinkhazard_common.git@138b5e1cca7850db9121a2f9ccba43a90ab81799#egg=thinkhazard_common
 -e .
