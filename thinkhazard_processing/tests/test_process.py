@@ -1,5 +1,6 @@
 import unittest
 import transaction
+import logging
 from datetime import datetime
 from shapely.geometry import (
     MultiPolygon,
@@ -25,6 +26,9 @@ from ..models import (
     )
 from ..processing import process
 from common import new_geonode_id
+
+
+logging.getLogger(process.__module__).setLevel(logging.WARN)
 
 
 def populate():
