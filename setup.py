@@ -28,6 +28,7 @@ setup(name='thinkhazard_processing',
       entry_points="""\
       [console_scripts]
       initialize_db = thinkhazard_processing.scripts.initializedb:main
+      harvest = thinkhazard_processing.scripts.harvest:main
       process = thinkhazard_processing.scripts.process:main
       decision_tree = thinkhazard_processing.scripts.decision_tree:main
       """,

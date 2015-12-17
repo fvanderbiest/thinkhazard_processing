@@ -140,6 +140,10 @@ Processing tasks
 Thinkhazard_processing provide some consecutive tasks to produce data for the
 thinkhazard datamart database. These are:
 
+``.build/venv/bin/harvest [--force] [--dry-run]``
+
+Havest metadata from geonode, create HazardSet and Layer records.
+
 ``.build/venv/bin/process [--hazarset_id ...] [--force] [--dry-run]``
 
 Calculate output from hazardsets and administrative divisions.

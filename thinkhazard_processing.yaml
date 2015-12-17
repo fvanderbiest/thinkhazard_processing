@@ -1,6 +1,10 @@
 sqlalchemy.url: postgresql://www-data:www-data@localhost:5432/thinkhazard_processing
 data_path: /var/sig
 
+geonode:
+  scheme: http
+  netloc: 45.55.174.20
+
 hazard_types:
   FL:
     hazard_type: river_flood

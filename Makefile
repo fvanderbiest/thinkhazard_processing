@@ -13,6 +13,7 @@ help:
 	@echo "- initdb                  Initialize database"
 	@echo "- check                   Check the code with flake8"
 	@echo "- test                    Run the unit tests"
+	@echo "- harvest                 Harvest geonode"
 	@echo "- process                 Run the processes"
 	@echo "- decisiontree            Run the decision tree"
 	@echo
@@ -23,6 +24,10 @@ install: .build/requirements.timestamp
 .PHONY: initdb
 initdb: .build/requirements.timestamp
 	.build/venv/bin/initialize_db
+
+.PHONY: harvest
+harvest: .build/requirements.timestamp
+	.build/venv/bin/harvest
 
 .PHONY: process
 process: .build/requirements.timestamp
