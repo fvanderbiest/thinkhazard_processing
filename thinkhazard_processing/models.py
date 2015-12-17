@@ -77,26 +77,27 @@ class HazardSet(Base):
 class Layer(Base):
     __tablename__ = 'layer'
     __table_args__ = {u'schema': 'processing'}
+
+    # the layer is referenced in geonode with an id:
+    geonode_id = Column(Integer, primary_key=True)
+
     # a layer is identified by it's return_period and hazard_set:
     hazardset_id = Column(String, ForeignKey('processing.hazardset.id'),
-                          primary_key=True)
+                          nullable=False)
     # the related hazard_level, inferred from return_period
     hazardlevel_id = Column(Integer,
-                            ForeignKey('datamart.enum_hazardlevel.id'),
-                            primary_key=True)
+                            ForeignKey('datamart.enum_hazardlevel.id'))
     # the return period is typically 100, 475, 2475 years but it can vary
-    return_period = Column(Integer, nullable=False)
+    return_period = Column(Integer)
 
     # pixel values have a unit:
-    hazardunit = Column(String, nullable=False)
+    hazardunit = Column(String)
 
     # date the data was last updated (defaults to created):
     data_lastupdated_date = Column(Date, nullable=False)
     # date the metadata was last updated (defaults to created):
     metadata_lastupdated_date = Column(Date, nullable=False)
 
-    # the layer is referenced in geonode with an id:
-    geonode_id = Column(Integer, nullable=False, unique=True)
     # the data can be downloaded at this URL:
     download_url = Column(String, nullable=False)
 
@@ -119,7 +120,10 @@ class Layer(Base):
     hazardlevel = relationship('HazardLevel')
 
     def name(self):
-        return '{}-{}'.format(self.hazardset_id, self.return_period)
+        if self.return_period is None:
+            return self.hazardset_id
+        else:
+            return '{}-{}'.format(self.hazardset_id, self.return_period)
 
     def path(self):
         return os.path.join(settings['data_path'],

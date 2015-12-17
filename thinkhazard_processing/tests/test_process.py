@@ -37,13 +37,6 @@ def populate():
     transaction.commit()
 
 
-def rasterio_open(reader):
-    mock = Mock()
-    mock.__enter__ = Mock(return_value=reader)
-    mock.__exit__ = Mock(return_value=False)
-    return mock
-
-
 def global_reader(value=None):
     array = np.empty(shape=(360, 720), dtype=np.float32, order='C')
     if value is not None:
@@ -68,12 +61,10 @@ class TestProcess(unittest.TestCase):
     def test_process_nodata(self, open_mock):
         '''Test nodata everywhere'''
         open_mock.side_effect = [
-            rasterio_open(global_reader()),
-            rasterio_open(global_reader()),
-            rasterio_open(global_reader())
+            global_reader(),
+            global_reader(),
+            global_reader()
         ]
-        rasterio_open.return_period = None
-        rasterio_open.value = None
         process(force=True)
         output = DBSession.query(Output).first()
         self.assertEqual(output.hazardlevel.mnemonic, 'VLO')
@@ -82,9 +73,9 @@ class TestProcess(unittest.TestCase):
     def test_process_low(self, open_mock):
         '''Test value > threshold in LOW layer'''
         open_mock.side_effect = [
-            rasterio_open(global_reader()),
-            rasterio_open(global_reader()),
-            rasterio_open(global_reader(100.0))
+            global_reader(),
+            global_reader(),
+            global_reader(100.0)
         ]
         process(force=True)
         output = DBSession.query(Output).first()
@@ -94,21 +85,21 @@ class TestProcess(unittest.TestCase):
     def test_process_medium(self, open_mock):
         '''Test value > threshold in MED layer'''
         open_mock.side_effect = [
-            rasterio_open(global_reader()),
-            rasterio_open(global_reader(100.0)),
-            rasterio_open(global_reader())
+            global_reader(),
+            global_reader(100.0),
+            global_reader()
         ]
         process(force=True)
         output = DBSession.query(Output).first()
         self.assertEqual(output.hazardlevel.mnemonic, 'MED')
 
-    @patch('rasterio.open', side_effect=rasterio_open)
+    @patch('rasterio.open')
     def test_process_high(self, open_mock):
         '''Test value > threshold in HIG layer'''
         open_mock.side_effect = [
-            rasterio_open(global_reader(100.0)),
-            rasterio_open(global_reader()),
-            rasterio_open(global_reader())
+            global_reader(100.0),
+            global_reader(),
+            global_reader()
         ]
         process(force=True)
         output = DBSession.query(Output).first()
@@ -164,6 +155,10 @@ def populate_processing():
     DBSession.add(hazardset)
 
     return_periods = hazardtype_settings['return_periods']
+    if isinstance(return_periods, list):
+        return_period = return_periods[0]
+    else:
+        return_period = return_periods
     unit = 'test'
 
     for level in (u'HIG', u'MED', u'LOW'):
