@@ -144,6 +144,15 @@ thinkhazard datamart database. These are:
 
 Havest metadata from geonode, create HazardSet and Layer records.
 
+``.build/venv/bin/download [--title] [--force] [--dry-run]``
+
+Download raster files in data folder.
+
+``.build/venv/bin/complete [--force] [--dry-run]``
+
+Check hazardsets that are complete, calculate some fields and pin them as
+complete.
+
 ``.build/venv/bin/process [--hazarset_id ...] [--force] [--dry-run]``
 
 Calculate output from hazardsets and administrative divisions.

@@ -29,6 +29,14 @@ initdb: .build/requirements.timestamp
 harvest: .build/requirements.timestamp
 	.build/venv/bin/harvest
 
+.PHONY: download
+download: .build/requirements.timestamp
+	.build/venv/bin/download
+
+.PHONY: complete
+complete: .build/requirements.timestamp
+	.build/venv/bin/complete
+
 .PHONY: process
 process: .build/requirements.timestamp
 	.build/venv/bin/process
