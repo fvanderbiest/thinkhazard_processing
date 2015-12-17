@@ -31,21 +31,31 @@ from common import new_geonode_id
 logging.getLogger(process.__module__).setLevel(logging.WARN)
 
 
+preprocessed_type = u'VA'
+notpreprocessed_type = u'FL'
+notpreprocessed_unit = 'm'
+
+
 def populate():
     DBSession.query(Output).delete()
     DBSession.query(Layer).delete()
     DBSession.query(HazardSet).delete()
     DBSession.query(AdministrativeDivision).delete()
     populate_datamart()
-    populate_processing()
+    populate_notpreprocessed(notpreprocessed_type, notpreprocessed_unit)
+    populate_preprocessed(preprocessed_type)
     transaction.commit()
 
 
 def global_reader(value=None):
     array = np.ma.masked_array(
-        np.empty(shape=(360, 720), dtype=np.float32, order='C'))
-    if value is not None:
+        np.empty(shape=(360, 720), dtype=np.float32, order='C'),
+        np.empty(shape=(360, 720), dtype=np.bool, order='C'))
+    if value is None:
+        array.mask.fill(True)
+    else:
         array.fill(value)
+        array.mask.fill(False)
     transform = Affine(-180., 0.5, 0.0, 90., 0.0, -0.5)
     reader = Mock(spec=RasterReader)
     reader.read.return_value = array
@@ -63,14 +73,28 @@ class TestProcess(unittest.TestCase):
         populate()
 
     @patch('rasterio.open')
-    def test_process_nodata(self, open_mock):
+    def test_process_empty(self, open_mock):
         '''Test nodata everywhere'''
         open_mock.side_effect = [
             global_reader(),
             global_reader(),
+            global_reader(),
             global_reader()
         ]
-        process(force=True)
+        process(hazardset_id='notpreprocessed')
+        output = DBSession.query(Output).first()
+        self.assertEqual(output, None)
+
+    @patch('rasterio.open')
+    def test_process_vlo(self, open_mock):
+        '''Test nodata everywhere'''
+        open_mock.side_effect = [
+            global_reader(0.0),
+            global_reader(),
+            global_reader(),
+            global_reader()
+        ]
+        process(hazardset_id='notpreprocessed')
         output = DBSession.query(Output).first()
         self.assertEqual(output.hazardlevel.mnemonic, 'VLO')
 
@@ -80,35 +104,109 @@ class TestProcess(unittest.TestCase):
         open_mock.side_effect = [
             global_reader(),
             global_reader(),
-            global_reader(100.0)
+            global_reader(100.0),
+            global_reader(),
         ]
-        process(force=True)
+        process(hazardset_id='notpreprocessed')
         output = DBSession.query(Output).first()
-        self.assertEqual(output.hazardlevel.mnemonic, 'LOW')
+        self.assertEqual(output.hazardlevel.mnemonic, u'LOW')
 
     @patch('rasterio.open')
-    def test_process_medium(self, open_mock):
+    def test_process_med(self, open_mock):
         '''Test value > threshold in MED layer'''
         open_mock.side_effect = [
             global_reader(),
             global_reader(100.0),
-            global_reader()
+            global_reader(),
+            global_reader(),
         ]
-        process(force=True)
+        process(hazardset_id='notpreprocessed')
         output = DBSession.query(Output).first()
-        self.assertEqual(output.hazardlevel.mnemonic, 'MED')
+        self.assertEqual(output.hazardlevel.mnemonic, u'MED')
 
     @patch('rasterio.open')
-    def test_process_high(self, open_mock):
+    def test_process_hig(self, open_mock):
         '''Test value > threshold in HIG layer'''
         open_mock.side_effect = [
             global_reader(100.0),
             global_reader(),
+            global_reader(),
             global_reader()
         ]
-        process(force=True)
+        process(hazardset_id='notpreprocessed')
         output = DBSession.query(Output).first()
-        self.assertEqual(output.hazardlevel.mnemonic, 'HIG')
+        self.assertEqual(output.hazardlevel.mnemonic, u'HIG')
+
+    @patch('rasterio.open')
+    def test_process_mask(self, open_mock):
+        '''Test mask layer'''
+        open_mock.side_effect = [
+            global_reader(100.0),
+            global_reader(),
+            global_reader(),
+            global_reader(100.0)
+        ]
+        process(hazardset_id='notpreprocessed')
+        output = DBSession.query(Output).first()
+        self.assertEqual(output, None)
+
+    @patch('rasterio.open')
+    def test_preprocessed_empty(self, open_mock):
+        '''Test mask layer'''
+        open_mock.side_effect = [
+            global_reader(),
+        ]
+        process(hazardset_id='preprocessed')
+        output = DBSession.query(Output).first()
+        self.assertEqual(output, None)
+
+    @patch('rasterio.open')
+    def test_preprocessed_vlo(self, open_mock):
+        '''Test mask layer'''
+        hazardtype = HazardType.get(preprocessed_type)
+        hazardtype_settings = settings['hazard_types'][hazardtype.mnemonic]
+        open_mock.side_effect = [
+            global_reader(hazardtype_settings['values']['VLO'][0]),
+        ]
+        process(hazardset_id='preprocessed')
+        output = DBSession.query(Output).first()
+        self.assertEqual(output.hazardlevel.mnemonic, u'VLO')
+
+    @patch('rasterio.open')
+    def test_preprocessed_low(self, open_mock):
+        '''Test mask layer'''
+        hazardtype = HazardType.get(preprocessed_type)
+        hazardtype_settings = settings['hazard_types'][hazardtype.mnemonic]
+        open_mock.side_effect = [
+            global_reader(hazardtype_settings['values']['VLO'][0]),
+        ]
+        process(hazardset_id='preprocessed')
+        output = DBSession.query(Output).first()
+        self.assertEqual(output.hazardlevel.mnemonic, u'VLO')
+
+    @patch('rasterio.open')
+    def test_preprocessed_med(self, open_mock):
+        '''Test mask layer'''
+        hazardtype = HazardType.get(preprocessed_type)
+        hazardtype_settings = settings['hazard_types'][hazardtype.mnemonic]
+        open_mock.side_effect = [
+            global_reader(hazardtype_settings['values']['MED'][0]),
+        ]
+        process(hazardset_id='preprocessed')
+        output = DBSession.query(Output).first()
+        self.assertEqual(output.hazardlevel.mnemonic, u'MED')
+
+    @patch('rasterio.open')
+    def test_preprocessed_hig(self, open_mock):
+        '''Test mask layer'''
+        hazardtype = HazardType.get(preprocessed_type)
+        hazardtype_settings = settings['hazard_types'][hazardtype.mnemonic]
+        open_mock.side_effect = [
+            global_reader(hazardtype_settings['values']['HIG'][0]),
+        ]
+        process(hazardset_id='preprocessed')
+        output = DBSession.query(Output).first()
+        self.assertEqual(output.hazardlevel.mnemonic, u'HIG')
 
 
 def populate_datamart():
@@ -144,48 +242,93 @@ def populate_datamart():
     DBSession.flush()
 
 
-def populate_processing():
-    print 'populate processing'
-    hazardset_id = u'test'
-    hazardtype = HazardType.get(u'EQ')
+def populate_notpreprocessed(type, unit):
+    hazardset_id = u'notpreprocessed'
+    hazardtype = HazardType.get(type)
     hazardtype_settings = settings['hazard_types'][hazardtype.mnemonic]
 
     print 'Populating hazardset {}'.format(hazardset_id)
-    hazardset = HazardSet()
-    hazardset.id = hazardset_id
-    hazardset.hazardtype = hazardtype
-    hazardset.local = False
-    hazardset.data_lastupdated_date = datetime.now()
-    hazardset.metadata_lastupdated_date = datetime.now()
+    hazardset = HazardSet(
+        id=hazardset_id,
+        hazardtype=hazardtype,
+        local=False,
+        data_lastupdated_date=datetime.now(),
+        metadata_lastupdated_date=datetime.now())
     DBSession.add(hazardset)
 
     return_periods = hazardtype_settings['return_periods']
-    if isinstance(return_periods, list):
-        return_period = return_periods[0]
-    else:
-        return_period = return_periods
-    unit = 'test'
 
     for level in (u'HIG', u'MED', u'LOW'):
         hazardlevel = HazardLevel.get(level)
-        return_period = return_periods[level][0]
+        level_return_periods = return_periods[level]
+        if isinstance(level_return_periods, list):
+            return_period = level_return_periods[0]
+        else:
+            return_period = level_return_periods
 
-        layer = Layer()
-        layer.title = "{}-{}".format(id, return_period)
-        layer.hazardlevel = hazardlevel
-        layer.mask = False
-        layer.return_period = return_period
-        layer.hazardunit = unit
-        layer.data_lastupdated_date = datetime.now()
-        layer.metadata_lastupdated_date = datetime.now()
-        layer.geonode_id = new_geonode_id()
-        layer.download_url = 'test'
-        layer.calculation_method_quality = 5
-        layer.scientific_quality = 1
-        layer.local = False
-        layer.downloaded = True
+        layer = Layer(
+            hazardlevel=hazardlevel,
+            mask=False,
+            return_period=return_period,
+            hazardunit=unit,
+            data_lastupdated_date=datetime.now(),
+            metadata_lastupdated_date=datetime.now(),
+            geonode_id=new_geonode_id(),
+            download_url='test',
+            calculation_method_quality=5,
+            scientific_quality=1,
+            local=False,
+            downloaded=True
+        )
         hazardset.layers.append(layer)
-        DBSession.flush()
+
+    layer = Layer(
+        hazardlevel=None,
+        mask=True,
+        return_period=hazardtype_settings['mask_return_period'],
+        hazardunit=unit,
+        data_lastupdated_date=datetime.now(),
+        metadata_lastupdated_date=datetime.now(),
+        geonode_id=new_geonode_id(),
+        download_url='test',
+        calculation_method_quality=5,
+        scientific_quality=1,
+        local=False,
+        downloaded=True
+    )
+    hazardset.layers.append(layer)
+
+    hazardset.complete = True
+    DBSession.flush()
+
+
+def populate_preprocessed(type):
+    hazardset_id = u'preprocessed'
+    hazardtype = HazardType.get(type)
+
+    print 'Populating hazardset {}'.format(hazardset_id)
+    hazardset = HazardSet(
+        id=hazardset_id,
+        hazardtype=hazardtype,
+        local=False,
+        data_lastupdated_date=datetime.now(),
+        metadata_lastupdated_date=datetime.now())
+    DBSession.add(hazardset)
+
+    layer = Layer(
+        hazardlevel=None,
+        mask=False,
+        return_period=None,
+        data_lastupdated_date=datetime.now(),
+        metadata_lastupdated_date=datetime.now(),
+        geonode_id=new_geonode_id(),
+        download_url='test',
+        calculation_method_quality=5,
+        scientific_quality=1,
+        local=False,
+        downloaded=True
+    )
+    hazardset.layers.append(layer)
 
     hazardset.complete = True
     DBSession.flush()

@@ -385,4 +385,6 @@ def get_threshold(hazardtype, local, level, unit):
             mysettings = mysettings[level]
         elif unit in mysettings.keys():
             mysettings = mysettings[unit]
+        else:
+            return None
     return float(mysettings)
