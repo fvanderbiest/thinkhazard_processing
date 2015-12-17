@@ -90,6 +90,9 @@ class Layer(Base):
     # the return period is typically 100, 475, 2475 years but it can vary
     return_period = Column(Integer)
 
+    # Flood need a mask layer
+    mask = Column(Boolean, nullable=False)
+
     # pixel values have a unit:
     hazardunit = Column(String)
 
@@ -121,6 +124,8 @@ class Layer(Base):
 
     def name(self):
         if self.return_period is None:
+            if self.mask:
+                return '{}-MASK'.format(self.hazardset_id)
             return self.hazardset_id
         else:
             return '{}-{}'.format(self.hazardset_id, self.return_period)

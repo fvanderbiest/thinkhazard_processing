@@ -42,7 +42,8 @@ def populate():
 
 
 def global_reader(value=None):
-    array = np.empty(shape=(360, 720), dtype=np.float32, order='C')
+    array = np.ma.masked_array(
+        np.empty(shape=(360, 720), dtype=np.float32, order='C'))
     if value is not None:
         array.fill(value)
     transform = Affine(-180., 0.5, 0.0, 90., 0.0, -0.5)
@@ -172,6 +173,7 @@ def populate_processing():
         layer = Layer()
         layer.title = "{}-{}".format(id, return_period)
         layer.hazardlevel = hazardlevel
+        layer.mask = False
         layer.return_period = return_period
         layer.hazardunit = unit
         layer.data_lastupdated_date = datetime.now()

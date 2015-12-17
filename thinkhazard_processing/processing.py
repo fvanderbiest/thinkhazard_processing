@@ -1,7 +1,6 @@
 import logging
 import transaction
 import datetime
-import numpy
 import rasterio
 import pyproj
 from rasterio import (
@@ -123,6 +122,14 @@ def process_hazardset(hazardset_id, force=False):
 
                     layers[level] = layer
                     readers[level] = reader
+                if ('mask_return_period' in type_settings):
+                    layer = DBSession.query(Layer) \
+                        .filter(Layer.hazardset_id == hazardset.id) \
+                        .filter(Layer.mask.is_(True)) \
+                        .one()
+                    reader = rasterio.open(layer.path())
+                    layers['mask'] = layer
+                    readers['mask'] = reader
 
             outputs = create_outputs(hazardset, layers, readers)
             if outputs:
@@ -258,6 +265,8 @@ def preprocessed_hazardlevel(hazardset, layer, reader, geometry):
         data = reader.read(1, window=window, masked=True)
         if data.shape[0] * data.shape[1] == 0:
             continue
+        if data.mask.all():
+            continue
 
         division = features.rasterize(
             ((g, 1) for g in [polygon]),
@@ -265,10 +274,9 @@ def preprocessed_hazardlevel(hazardset, layer, reader, geometry):
             transform=reader.window_transform(window),
             all_touched=True)
 
-        masked = numpy.ma.masked_array(data,
-                                       mask=~division.astype(bool))
+        data.mask = data.mask | ~division.astype(bool)
 
-        if str(numpy.max(masked)) == str(numpy.ma.masked):
+        if data.mask.all():
             continue
 
         for level in (u'HIG', u'MED', u'LOW', u'VLO'):
@@ -279,7 +287,7 @@ def preprocessed_hazardlevel(hazardset, layer, reader, geometry):
             if level in type_settings['values']:
                 values = type_settings['values'][level]
                 for value in values:
-                    if value in masked:
+                    if value in data:
                         hazardlevel = level_obj
                         break
 
@@ -314,18 +322,12 @@ def notpreprocessed_hazardlevel(hazardset, layers, readers, geometry):
             polygons = geometry
 
         for polygon in polygons:
-
             window = reader.window(*polygon.bounds)
             data = reader.read(1, window=window, masked=True)
-
             if data.shape[0] * data.shape[1] == 0:
                 continue
-
-            if ('inverted_comparison' in type_settings and
-                    type_settings['inverted_comparison']):
-                positive_data = (data < threshold).astype(rasterio.uint8)
-            else:
-                positive_data = (data > threshold).astype(rasterio.uint8)
+            if data.mask.all():
+                continue
 
             division = features.rasterize(
                 ((g, 1) for g in [polygon]),
@@ -333,18 +335,33 @@ def notpreprocessed_hazardlevel(hazardset, layers, readers, geometry):
                 transform=reader.window_transform(window),
                 all_touched=True)
 
-            masked = numpy.ma.masked_array(positive_data,
-                                           mask=~division.astype(bool))
+            inverted_comparison = ('inverted_comparison' in type_settings and
+                                   type_settings['inverted_comparison'])
+            if inverted_comparison:
+                data = data < threshold
+            else:
+                data = data > threshold
 
-            if str(numpy.max(masked)) == str(numpy.ma.masked):
+            if ('mask_return_period' in type_settings):
+                mask = readers['mask'].read(1, window=window, masked=True)
+                if inverted_comparison:
+                    mask = mask < threshold
+                else:
+                    mask = mask > threshold
+
+                data.mask = data.mask | mask
+
+            data.mask = data.mask | ~division.astype(bool)
+
+            if data.any():
+                hazardlevel = layer.hazardlevel
+                break
+
+            if data.mask.all():
                 continue
 
             if hazardlevel is None:
                 hazardlevel = level_VLO
-
-            if numpy.max(masked) > 0:
-                hazardlevel = layer.hazardlevel
-                break
 
         if hazardlevel == layer.hazardlevel:
             break

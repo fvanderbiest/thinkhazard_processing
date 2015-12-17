@@ -52,7 +52,12 @@ def complete(hazardset_id=None, force=False, dry_run=False):
     for id in ids:
         logger.info(id[0])
         try:
-            complete_hazardset(id[0])
+            if not complete_hazardset(id[0]):
+                hazardset = DBSession.query(HazardSet).get(id)
+                if hazardset.processed:
+                    logger.info('Deleting previous {} outputs'
+                                .format(hazardset.outputs.count()))
+                    hazardset.outputs.delete()
             if dry_run:
                 transaction.abort()
             else:
@@ -85,6 +90,14 @@ def complete_hazardset(hazardset_id, dry_run=False):
                 logger.info('  No layer for level {}'.format(level))
                 return False
             layers.append(layer)
+        if ('mask_return_period' in type_settings):
+            layer = DBSession.query(Layer) \
+                .filter(Layer.hazardset_id == hazardset_id) \
+                .filter(Layer.mask.is_(True))
+            if layer.count() == 0:
+                logger.info('  No mask layer')
+                return False
+            layers.append(layer.one())
 
     for layer in layers:
         if not layer.downloaded:
