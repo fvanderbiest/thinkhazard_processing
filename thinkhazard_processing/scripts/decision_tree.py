@@ -13,7 +13,7 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--dry-run', dest='dry_run',
         action='store_const', const=True, default=False,
-        help='Perform a trial run that do not commit changes')
+        help='Perform a trial run that does not commit changes')
     args = parser.parse_args(argv[1:])
 
     engine = engine_from_config(settings, 'sqlalchemy.')
