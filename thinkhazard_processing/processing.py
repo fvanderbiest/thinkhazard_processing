@@ -22,7 +22,7 @@ from thinkhazard_common.models import (
     HazardLevel,
     HazardType,
     HazardCategory,
-    hazardcategory_administrativedivision_table,
+    HazardCategoryAdministrativeDivisionAssociation,
     )
 from .models import (
     HazardSet,
@@ -82,7 +82,7 @@ def process_outputs():
     print "Decision Tree running..."
     # first of all, remove all records
     # in the datamart table linking admin divs with hazard categories:
-    hazardcategory_administrativedivision_table.delete()
+    DBSession.query(HazardCategoryAdministrativeDivisionAssociation).delete()
     # identify the admin level for which we run the decision tree:
     # (REG)ion aka admin level 2
     dt_level = DBSession.query(AdminLevelType)\
